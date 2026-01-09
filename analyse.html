@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Match Stats Extractor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.15);
+      --text: #e5e7eb;
+      --accent: #38bdf8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1e293b, #020617);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 900px;
+      background: var(--card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      text-align: center;
+    }
+
+    p.subtitle {
+      text-align: center;
+      opacity: .8;
+      margin-bottom: 30px;
+    }
+
+    .upload {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: .3s;
+    }
+
+    .upload:hover {
+      border-color: var(--accent);
+      background: rgba(56,189,248,.05);
+    }
+
+    .upload input {
+      display: none;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: #020617;
+      font-weight: 600;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .loader {
+      margin: 20px auto;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,.2);
+      border-top: 4px solid var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    pre {
+      margin-top: 20px;
+      background: #020617;
+      padding: 20px;
+      border-radius: 12px;
+      max-height: 400px;
+      overflow: auto;
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+  <h1>⚽ Match Stats Extractor</h1>
+  <p class="subtitle">
+    Dépose une image de statistiques de match et récupère le JSON automatiquement.
+  </p>
+
+  <label class="upload">
+    <input type="file" id="file" accept="image/*">
+    <strong>Glisse ou clique pour ajouter une image</strong><br>
+    <small>PNG / JPG</small>
+  </label>
+
+  <button id="analyze" disabled>Analyser le match</button>
+
+  <div class="loader" id="loader"></div>
+
+  <pre id="output" hidden></pre>
+
+  <div class="actions" hidden id="actions">
+    <button class="secondary" onclick="downloadJSON()">Télécharger le JSON</button>
+  </div>
+</div>
+
+<script>
+const fileInput = document.getElementById("file");
+const analyzeBtn = document.getElementById("analyze");
+const loader = document.getElementById("loader");
+const output = document.getElementById("output");
+const actions = document.getElementById("actions");
+
+let lastJSON = null;
+
+fileInput.addEventListener("change", () => {
+  analyzeBtn.disabled = !fileInput.files.length;
+});
+
+analyzeBtn.addEventListener("click", async () => {
+  loader.style.display = "block";
+  output.hidden = true;
+  actions.hidden = true;
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(
+      "https://backend-79st.onrender.com/extract",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("Erreur API : " + res.status);
+    }
+
+    lastJSON = await res.json();
+
+    output.textContent = JSON.stringify(lastJSON, null, 2);
+    output.hidden = false;
+    actions.hidden = false;
+
+  } catch (err) {
+    output.textContent = "❌ Erreur : " + err.message;
+    output.hidden = false;
+  } finally {
+    loader.style.display = "none";
+  }
+});
+
+function downloadJSON() {
+  const blob = new Blob(
+    [JSON.stringify(lastJSON, null, 2)],
+    { type: "application/json" }
+  );
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "match_stats.json";
+  link.click();
+}
+</script>
+
+</body>
+</html>
